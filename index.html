@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="ml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word Cloud</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@400;600;800&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg1:#0f172a;--bg2:#1e1b4b;--panel:rgba(255,255,255,.07);--line:rgba(255,255,255,.16);--text:#f1f5f9;--muted:#94a3b8;--accent:#facc15;--ok:#4ade80}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:'Poppins','Noto Sans Malayalam',system-ui,sans-serif;color:var(--text);display:flex;flex-direction:column;overflow:hidden;
+  background:radial-gradient(circle at 15% 0%,#3730a3 0,transparent 45%),radial-gradient(circle at 90% 100%,#701a75 0,transparent 40%),linear-gradient(160deg,var(--bg1),var(--bg2))}
+header{display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1;font-weight:600;color:var(--muted);min-width:120px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:8px 13px;border-radius:10px;font-size:14px;transition:background .2s}
+button:hover{background:rgba(255,255,255,.16)}
+button:disabled{opacity:.35;cursor:default}
+button.primary{background:var(--accent);color:#1e1b4b;border-color:var(--accent);font-weight:700}
+button.primary:hover{background:#fde047}
+button.danger:hover{background:rgba(248,113,113,.25)}
+.qbar{display:flex;align-items:center;gap:14px;padding:18px 24px 4px}
+.qwrap{flex:1;text-align:center}
+.qnum{font-size:13px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-weight:600}
+.qtext{font-size:clamp(20px,3.2vw,42px);font-weight:800;line-height:1.3;margin-top:4px}
+.qactions{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.qactions button{font-size:13px;padding:6px 12px}
+.nav{width:46px;height:46px;border-radius:50%;padding:0;font-size:20px;flex:none}
+#stage{position:relative;flex:1;display:flex;min-height:0}
+#cloud{position:relative;flex:1;margin:8px 20px;overflow:hidden}
+.word{position:absolute;white-space:nowrap;font-weight:800;line-height:1;cursor:pointer;user-select:none;
+  transition:left .6s ease,top .6s ease,font-size .6s ease,opacity .3s;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+.word:hover{opacity:.75}
+.word.new{animation:pop .7s ease}
+@keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px;text-align:center;padding:20px}
+#joinCard{position:absolute;right:20px;bottom:10px;background:#fff;color:#1e1b4b;border-radius:14px;padding:10px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:2;cursor:pointer}
+#joinCard .lbl{font-size:12px;font-weight:700;margin-top:6px}
+#miniQr img,#miniQr canvas{display:block;width:130px;height:130px}
+form.answer{display:flex;gap:10px;padding:10px 20px 6px;max-width:780px;width:100%;margin:0 auto}
+form.answer input{flex:1;min-width:0;font:inherit;font-size:18px;padding:14px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.09);color:var(--text);outline:none}
+input:focus,textarea:focus{border-color:var(--accent)}
+input:disabled{opacity:.4}
+.count{color:var(--muted);font-size:13px;text-align:center;padding:0 20px 14px;min-height:30px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#64748b;margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+#measure{position:absolute;visibility:hidden;white-space:nowrap;font-weight:800;line-height:1;left:-9999px;top:0}
+.modal{position:fixed;inset:0;background:rgba(2,6,23,.75);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.open{display:flex}
+.box{background:#1e1b4b;border:1px solid var(--line);border-radius:18px;padding:22px;width:100%;max-width:620px;max-height:92vh;overflow:auto}
+.box h2{margin:0 0 14px;font-size:20px}
+.box label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+.box input,.box textarea{width:100%;font:inherit;font-size:17px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--text);outline:none}
+.box textarea{min-height:200px;resize:vertical;line-height:1.6}
+.row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}
+.warn{background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.4);color:#fde68a;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.6;margin-bottom:12px}
+#bigQr{background:#fff;border-radius:14px;padding:14px;width:max-content;margin:6px auto 0}
+#bigQr img,#bigQr canvas{display:block;width:min(300px,70vw);height:auto}
+.linkrow{display:flex;gap:8px;margin-top:12px}
+.linkrow input{font-size:14px}
+.hide{display:none!important}
+
+/* പങ്കെടുക്കുന്നവരുടെ പേജ് */
+.join{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 18px;overflow:auto}
+.join .card{width:100%;max-width:520px;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:22px;padding:26px 22px;text-align:center}
+.join .ttl{color:var(--muted);font-size:14px;font-weight:600}
+.join .q{font-size:clamp(22px,6vw,30px);font-weight:800;line-height:1.35;margin:12px 0 20px}
+.join input{width:100%;font:inherit;font-size:20px;padding:15px 16px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.09);color:var(--text);outline:none;text-align:center}
+.join button{width:100%;margin-top:12px;padding:15px;font-size:18px;border-radius:14px}
+.join .msg{min-height:26px;margin-top:14px;font-size:15px}
+.join .msg.ok{color:var(--ok)}
+.join .msg.err{color:#fca5a5}
+.join .wait{color:var(--muted);font-size:18px;line-height:1.6}
+.join .tip{color:var(--muted);font-size:12px;margin-top:10px}
+
+@media (max-width:600px){.qbar{padding:12px 12px 4px;gap:8px}.nav{width:38px;height:38px}#cloud{margin:6px 10px}form.answer{padding:8px 12px 6px}#joinCard{display:none}}
+</style>
+</head>
+<body>
+
+<!-- ================= അവതാരകന്റെ സ്ക്രീൻ ================= -->
+<div id="hostView" class="hide" style="display:contents">
+<header>
+  <h1 id="title">Word Cloud</h1>
+  <button class="primary" id="btnShare">🔗 ലിങ്ക് / QR</button>
+  <button id="btnAdd">➕ പുതിയ ചോദ്യം</button>
+  <button id="btnAll">📋 എല്ലാ ചോദ്യങ്ങളും</button>
+  <button id="btnFull">⛶ Full screen</button>
+</header>
+
+<div class="qbar">
+  <button class="nav" id="prev" title="മുൻ ചോദ്യം">‹</button>
+  <div class="qwrap">
+    <div class="qnum" id="qnum"></div>
+    <div class="qtext" id="qtext"></div>
+    <div class="qactions" id="qactions">
+      <button id="btnEditQ">✏️ തിരുത്തുക</button>
+      <button id="btnClear">🧹 ഉത്തരങ്ങൾ മായ്ക്കുക</button>
+      <button class="danger" id="btnDelQ">🗑️ ചോദ്യം നീക്കുക</button>
+      <button id="btnQr">▣ QR കാണിക്കുക/മറയ്ക്കുക</button>
+    </div>
+  </div>
+  <button class="nav" id="next" title="അടുത്ത ചോദ്യം">›</button>
+</div>
+
+<div id="stage">
+  <div id="cloud"><div id="empty"></div></div>
+  <div id="joinCard" title="വലുതാക്കാൻ ക്ലിക്ക് ചെയ്യുക"><div id="miniQr"></div><div class="lbl">📱 സ്കാൻ ചെയ്ത് ഉത്തരം നൽകൂ</div></div>
+</div>
+
+<form class="answer" id="form" autocomplete="off">
+  <input id="ans" maxlength="40" placeholder="ഇവിടെയും ഉത്തരം ടൈപ്പ് ചെയ്യാം">
+  <button class="primary" type="submit" id="btnSubmit">Submit</button>
+</form>
+<div class="count"><span class="dot" id="liveDot"></span><span id="count"></span></div>
+<span id="measure"></span>
+
+<div class="modal" id="shareModal">
+  <div class="box" style="text-align:center">
+    <h2>പങ്കെടുക്കുന്നവർക്കുള്ള ലിങ്ക്</h2>
+    <div class="warn hide" id="fileWarn" style="text-align:left">
+      ⚠️ ഈ ഫയൽ ഇപ്പോൾ കമ്പ്യൂട്ടറിൽ നിന്ന് നേരിട്ടാണ് തുറന്നിരിക്കുന്നത്. ഫോണുകളിൽ ലിങ്ക് പ്രവർത്തിക്കാൻ, ഈ HTML ഫയൽ ആദ്യം Netlify Drop (app.netlify.com/drop) അല്ലെങ്കിൽ GitHub Pages പോലുള്ള സൗജന്യ സൈറ്റിൽ അപ്‌ലോഡ് ചെയ്ത് ആ വെബ് വിലാസത്തിൽ തുറക്കുക. അപ്പോൾ ഇവിടെ ശരിയായ ലിങ്കും QR-ഉം വരും.
+    </div>
+    <div id="bigQr"></div>
+    <div class="linkrow">
+      <input id="joinLink" readonly>
+      <button class="primary" id="btnCopy">പകർത്തുക</button>
+    </div>
+    <div class="hint" style="text-align:left">
+      ലിങ്ക് WhatsApp-ൽ ഷെയർ ചെയ്യുകയോ QR സ്ക്രീനിൽ കാണിക്കുകയോ ചെയ്യാം. ലോഗിൻ ആവശ്യമില്ല. ഈ സ്ക്രീനിൽ ഇപ്പോൾ കാണിക്കുന്ന ചോദ്യമാണ് എല്ലാവരുടെയും ഫോണിൽ തെളിയുക.<br>
+      പുതിയ സെഷന് പഴയ ലിങ്ക് ഒഴിവാക്കാൻ "പുതിയ ലിങ്ക്" ഉപയോഗിക്കുക.
+    </div>
+    <div class="row">
+      <button class="danger" id="btnNewRoom">🔄 പുതിയ ലിങ്ക്</button>
+      <button id="shareClose">അടയ്ക്കുക</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="qModal">
+  <div class="box">
+    <h2 id="qModalTitle">പുതിയ ചോദ്യം</h2>
+    <label for="inQ">ചോദ്യം</label>
+    <input id="inQ" maxlength="200" placeholder="ഉദാ: ഇന്നത്തെ ക്ലാസ് ഒറ്റ വാക്കിൽ?">
+    <div class="row">
+      <button id="qCancel">റദ്ദാക്കുക</button>
+      <button class="primary" id="qSave">സേവ് ചെയ്യുക</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="allModal">
+  <div class="box">
+    <h2>എല്ലാ ചോദ്യങ്ങളും</h2>
+    <label for="inTitle">സെഷന്റെ പേര്</label>
+    <input id="inTitle">
+    <label for="inQs">ചോദ്യങ്ങൾ (ഓരോ വരിയിലും ഒരു ചോദ്യം)</label>
+    <textarea id="inQs"></textarea>
+    <div class="hint">ചോദ്യത്തിന്റെ വാചകം മാറ്റാതെ വച്ചാൽ അതിന്റെ പഴയ ഉത്തരങ്ങൾ നിലനിൽക്കും.</div>
+    <div class="row">
+      <button id="allCancel">റദ്ദാക്കുക</button>
+      <button class="primary" id="allSave">സേവ് ചെയ്യുക</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ================= പങ്കെടുക്കുന്നവരുടെ പേജ് ================= -->
+<div id="joinView" class="join hide">
+  <div class="card">
+    <div class="ttl" id="jTitle">Word Cloud</div>
+    <div id="jWait" class="wait">⏳ ചോദ്യം ലോഡ് ചെയ്യുന്നു…</div>
+    <div id="jBody" class="hide">
+      <div class="q" id="jQ"></div>
+      <form id="jForm" autocomplete="off">
+        <input id="jAns" maxlength="40" placeholder="നിങ്ങളുടെ ഉത്തരം">
+        <button class="primary" type="submit" id="jSend">അയക്കുക</button>
+      </form>
+      <div class="msg" id="jMsg"></div>
+      <div class="tip">ഒന്നിലധികം ഉത്തരങ്ങൾ നൽകാൻ കോമ (,) ഉപയോഗിക്കുക</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- പൊതുവായവ ---------- */
+const RELAY = 'https://ntfy.sh/';   // സൗജന്യ തത്സമയ സന്ദേശ സേവനം
+const $ = id => document.getElementById(id);
+const clean = s => String(s || '').trim().replace(/\s+/g, ' ');
+const norm = s => clean(s).toLowerCase();
+const rid = n => { const a = 'abcdefghijkmnpqrstuvwxyz23456789'; let s = ''; const r = crypto.getRandomValues(new Uint8Array(n)); for (const x of r) s += a[x % a.length]; return s; };
+function hash(s){ let h = 0; for (const c of s) h = (h * 31 + c.codePointAt(0)) | 0; return Math.abs(h); }
+function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+async function post(topic, obj){
+  const r = await fetch(RELAY + topic, { method: 'POST', body: JSON.stringify(obj) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+}
+function listen(topic, onMsg, onState, since){
+  let es, closed = false, retry = 1000;
+  const open = () => {
+    es = new EventSource(RELAY + topic + '/sse' + (since ? '?since=' + since() : ''));
+    es.onopen = () => { retry = 1000; onState && onState(true); };
+    es.onmessage = ev => {
+      try { const m = JSON.parse(ev.data); if (m.event === 'message'){ onMsg(JSON.parse(m.message), m); } } catch (e) {}
+    };
+    es.onerror = () => { onState && onState(false); if (es.readyState === 2 && !closed){ setTimeout(open, retry); retry = Math.min(retry * 2, 15000); } };
+  };
+  open();
+  return { close(){ closed = true; es && es.close(); } };
+}
+
+const params = new URLSearchParams(location.search);
+const joinRoom = params.get('join');
+
+if (joinRoom && /^[a-z0-9]{6,40}$/.test(joinRoom)) startJoin(joinRoom); else startHost();
+
+/* =====================================================
+   പങ്കെടുക്കുന്നവരുടെ ഭാഗം
+   ===================================================== */
+function startJoin(room){
+  $('hostView').remove();
+  $('joinView').classList.remove('hide');
+  const topic = 'wcml-' + room;
+  let curQ = null, lastSend = 0;
+
+  listen(topic + '-q', q => {
+    if (!q || typeof q !== 'object') return;
+    $('jTitle').textContent = clean(q.title) || 'Word Cloud';
+    document.title = $('jTitle').textContent;
+    if (!q.qid){
+      curQ = null;
+      $('jWait').textContent = '⏳ അടുത്ത ചോദ്യത്തിനായി കാത്തിരിക്കൂ…';
+      $('jWait').classList.remove('hide'); $('jBody').classList.add('hide');
+      return;
+    }
+    const changed = !curQ || curQ.qid !== q.qid;
+    curQ = q;
+    $('jQ').textContent = clean(q.text);
+    $('jWait').classList.add('hide'); $('jBody').classList.remove('hide');
+    if (changed){ $('jMsg').textContent = ''; $('jMsg').className = 'msg'; }
+  }, null, () => 'all');
+
+  setTimeout(() => {
+    if (!curQ && $('jWait').textContent.startsWith('⏳ ചോദ്യം ലോഡ്'))
+      $('jWait').textContent = '⏳ അവതാരകൻ ചോദ്യം കാണിക്കുന്നതിനായി കാത്തിരിക്കൂ…';
+  }, 6000);
+
+  $('jForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const v = clean($('jAns').value).slice(0, 40);
+    if (!v || !curQ) return;
+    if (Date.now() - lastSend < 1500) return;
+    lastSend = Date.now();
+    $('jSend').disabled = true;
+    try {
+      await post(topic + '-a', { qid: curQ.qid, text: v });
+      $('jAns').value = '';
+      $('jMsg').textContent = '✓ അയച്ചു! വേണമെങ്കിൽ മറ്റൊന്നും അയക്കാം';
+      $('jMsg').className = 'msg ok';
+    } catch (err) {
+      $('jMsg').textContent = 'അയക്കാനായില്ല. കുറച്ച് കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കൂ';
+      $('jMsg').className = 'msg err';
+    }
+    setTimeout(() => { $('jSend').disabled = false; }, 1500);
+    $('jAns').focus();
+  });
+}
+
+/* =====================================================
+   അവതാരകന്റെ ഭാഗം
+   ===================================================== */
+function startHost(){
+  $('joinView').remove();
+  $('hostView').classList.remove('hide');
+
+  const STORE = 'wordcloud-ml-v3';
+  const palette = ['#facc15','#38bdf8','#f472b6','#4ade80','#fb923c','#a78bfa','#f87171','#2dd4bf','#e879f9','#fde68a','#93c5fd'];
+  let state = null;
+  try { state = JSON.parse(lsGet(STORE)); } catch (e) {}
+  if (!state || !Array.isArray(state.questions)){
+    let old = null;
+    try { old = JSON.parse(lsGet('wordcloud-ml-v2')); } catch (e) {}
+    state = { title: (old && old.title) || 'Word Cloud', current: (old && old.current) || 0, questions: (old && old.questions) || [] };
+  }
+  state.questions.forEach(q => { if (!q.id) q.id = rid(8); if (!Array.isArray(q.answers)) q.answers = []; });
+  if (!state.room) state.room = rid(14);
+  if (!Array.isArray(state.seen)) state.seen = [];
+  if (state.showQr === undefined) state.showQr = true;
+  function save(){ lsSet(STORE, JSON.stringify(state)); }
+
+  const cloud = $('cloud'), measure = $('measure');
+  const hasQ = () => state.questions.length > 0;
+  const cur = () => state.questions[state.current];
+  const spans = new Map();
+  let lastAdded = new Set();
+  let answerSub = null;
+
+  const topic = () => 'wcml-' + state.room;
+  const joinUrl = () => location.origin + location.pathname + '?join=' + state.room;
+
+  /* ---- വേഡ് ക്ലൗഡ് ---- */
+  function counts(){
+    if (!hasQ()) return [];
+    const m = new Map();
+    for (const a of cur().answers){
+      const k = norm(a); if (!k) continue;
+      const e = m.get(k);
+      if (e) e.n++; else m.set(k, { key: k, text: clean(a), n: 1 });
+    }
+    return [...m.values()].sort((a, b) => b.n - a.n || a.key.localeCompare(b.key));
+  }
+
+  function layout(items, W, H, scale){
+    const maxN = items[0].n, minN = items[items.length - 1].n;
+    const base = Math.min(W, H);
+    const minF = Math.max(14, base * 0.045) * scale;
+    const maxF = Math.max(minF, base * 0.2 * scale);
+    const placed = [], out = [];
+    const cx = W / 2, cy = H / 2, ratio = Math.max(1, W / H);
+    const maxR = Math.hypot(W, H) / 2;
+    let fails = 0;
+    for (const it of items){
+      let f;
+      if (maxN === minN) f = items.length === 1 ? maxF : minF + (maxF - minF) * 0.45;
+      else f = minF + (maxF - minF) * Math.sqrt((it.n - minN) / (maxN - minN));
+      measure.style.fontSize = f + 'px';
+      measure.textContent = it.text;
+      const padX = f * 0.3, padY = f * 0.18;
+      const w = measure.offsetWidth + padX, h = measure.offsetHeight + padY;
+      let done = false;
+      const start = (hash(it.key) % 628) / 100;
+      for (let t = 0; ; t += 0.07){
+        const r = t * 2.2;
+        if (r > maxR) break;
+        const a = t + start;
+        const x = cx + r * Math.cos(a) * ratio - w / 2;
+        const y = cy + r * Math.sin(a) - h / 2;
+        if (x < 0 || y < 0 || x + w > W || y + h > H) continue;
+        let hit = false;
+        for (const p of placed){
+          if (x < p.x + p.w && x + w > p.x && y < p.y + p.h && y + h > p.y){ hit = true; break; }
+        }
+        if (hit) continue;
+        placed.push({ x, y, w, h });
+        out.push({ ...it, f, x: x + padX / 2, y: y + padY / 2 });
+        done = true; break;
+      }
+      if (!done) fails++;
+    }
+    return { out, fails };
+  }
+
+  function render(){
+    const items = counts();
+    if (hasQ()){
+      $('count').textContent = 'പ്രതികരണങ്ങൾ: ' + cur().answers.length + '  •  വ്യത്യസ്ത ഉത്തരങ്ങൾ: ' + items.length;
+      $('empty').textContent = 'ലിങ്ക് / QR വഴി ഉത്തരങ്ങൾ അയക്കൂ… ഇവിടെ Word Cloud ആയി തെളിയും ✨';
+    } else {
+      $('count').textContent = '';
+      $('empty').textContent = 'മുകളിലെ "➕ പുതിയ ചോദ്യം" ബട്ടൺ അമർത്തി ആദ്യ ചോദ്യം ചേർക്കൂ';
+    }
+    $('empty').style.display = items.length ? 'none' : 'flex';
+    const W = cloud.clientWidth, H = cloud.clientHeight;
+    let res = { out: [], fails: 0 };
+    if (items.length && W > 0 && H > 0){
+      let scale = 1;
+      for (let i = 0; i < 14; i++){
+        res = layout(items, W, H, scale);
+        if (!res.fails) break;
+        scale *= 0.86;
+      }
+    }
+    const keep = new Set(res.out.map(o => o.key));
+    for (const [k, el] of spans){ if (!keep.has(k)){ el.remove(); spans.delete(k); } }
+    for (const o of res.out){
+      let el = spans.get(o.key);
+      if (!el){
+        el = document.createElement('span');
+        el.className = 'word';
+        el.style.left = o.x + 'px'; el.style.top = o.y + 'px'; el.style.fontSize = o.f + 'px';
+        el.addEventListener('click', () => removeWord(o.key, el.textContent));
+        cloud.appendChild(el);
+        spans.set(o.key, el);
+      }
+      el.textContent = o.text;
+      el.style.color = palette[hash(o.key) % palette.length];
+      el.title = o.n + ' പേർ • നീക്കം ചെയ്യാൻ ക്ലിക്ക് ചെയ്യുക';
+      if (lastAdded.has(o.key)){ el.classList.remove('new'); void el.offsetWidth; el.classList.add('new'); }
+      requestAnimationFrame(() => {
+        el.style.left = o.x + 'px'; el.style.top = o.y + 'px'; el.style.fontSize = o.f + 'px';
+      });
+    }
+    lastAdded = new Set();
+  }
+
+  function resetCloud(){ for (const el of spans.values()) el.remove(); spans.clear(); }
+
+  function addAnswers(q, raw){
+    const parts = String(raw || '').split(/[,،]/).map(clean).map(s => s.slice(0, 40)).filter(Boolean).slice(0, 5);
+    for (const p of parts){ q.answers.push(p); if (q === cur()) lastAdded.add(norm(p)); }
+    return parts.length;
+  }
+
+  /* ---- ചോദ്യം എല്ലാ ഫോണുകളിലേക്കും അയക്കുന്നു ---- */
+  let bcTimer;
+  function broadcast(){
+    clearTimeout(bcTimer);
+    bcTimer = setTimeout(() => {
+      const q = hasQ() ? cur() : null;
+      post(topic() + '-q', { title: state.title, qid: q ? q.id : null, text: q ? q.text : '' }).catch(() => {});
+    }, 300);
+  }
+
+  /* ---- ഫോണുകളിൽ നിന്നുള്ള ഉത്തരങ്ങൾ സ്വീകരിക്കുന്നു ---- */
+  function subscribeAnswers(){
+    answerSub && answerSub.close();
+    answerSub = listen(topic() + '-a', (msg, raw) => {
+      if (state.seen.includes(raw.id)) return;
+      state.seen.push(raw.id); if (state.seen.length > 3000) state.seen.splice(0, 1000);
+      state.lastId = raw.id;
+      if (!msg || typeof msg.qid !== 'string') return;
+      const q = state.questions.find(x => x.id === msg.qid);
+      if (!q) return;
+      if (addAnswers(q, msg.text)){ save(); if (q === cur()) render(); }
+    }, on => $('liveDot').classList.toggle('on', on), () => state.lastId || 'all');
+  }
+
+  /* ---- QR ---- */
+  function drawQr(el, size){
+    el.innerHTML = '';
+    if (window.QRCode) new QRCode(el, { text: joinUrl(), width: size, height: size, colorDark: '#1e1b4b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    else el.textContent = 'QR ലോഡ് ചെയ്യാനായില്ല';
+  }
+  const isFile = location.protocol === 'file:';
+  function refreshShare(){
+    $('joinLink').value = joinUrl();
+    $('fileWarn').classList.toggle('hide', !isFile);
+    drawQr($('miniQr'), 260);
+    $('joinCard').classList.toggle('hide', !state.showQr || isFile || !hasQ());
+  }
+  function openShare(){
+    refreshShare();
+    drawQr($('bigQr'), 600);
+    $('shareModal').classList.add('open');
+  }
+
+  function showQuestion(){
+    const n = state.questions.length;
+    state.current = n ? Math.min(Math.max(0, state.current), n - 1) : 0;
+    $('title').textContent = state.title || 'Word Cloud';
+    document.title = state.title || 'Word Cloud';
+    if (n){
+      $('qnum').textContent = 'ചോദ്യം ' + (state.current + 1) + ' / ' + n;
+      $('qtext').textContent = cur().text;
+    } else {
+      $('qnum').textContent = '';
+      $('qtext').textContent = 'ചോദ്യങ്ങൾ ഒന്നും ചേർത്തിട്ടില്ല';
+    }
+    $('qactions').classList.toggle('hide', !n);
+    $('prev').style.visibility = n > 1 ? 'visible' : 'hidden';
+    $('next').style.visibility = n > 1 ? 'visible' : 'hidden';
+    $('prev').disabled = state.current === 0;
+    $('next').disabled = state.current >= n - 1;
+    $('ans').disabled = !n; $('btnSubmit').disabled = !n;
+    $('joinCard').classList.toggle('hide', !state.showQr || isFile || !n);
+    resetCloud();
+    render();
+    save();
+    broadcast();
+  }
+
+  function removeWord(key, text){
+    if (!confirm('"' + text + '" നീക്കം ചെയ്യണോ?')) return;
+    cur().answers = cur().answers.filter(a => norm(a) !== key);
+    save(); render();
+  }
+
+  $('form').addEventListener('submit', e => {
+    e.preventDefault();
+    if (!hasQ()) return;
+    if (addAnswers(cur(), $('ans').value)){ $('ans').value = ''; save(); render(); }
+    $('ans').focus();
+  });
+
+  let editMode = 'add';
+  function openQ(mode){
+    editMode = mode;
+    $('qModalTitle').textContent = mode === 'add' ? 'പുതിയ ചോദ്യം' : 'ചോദ്യം തിരുത്തുക';
+    $('inQ').value = mode === 'edit' ? cur().text : '';
+    $('qModal').classList.add('open');
+    setTimeout(() => $('inQ').focus(), 50);
+  }
+  function saveQ(){
+    const t = clean($('inQ').value);
+    if (!t){ $('inQ').focus(); return; }
+    if (editMode === 'add'){
+      state.questions.push({ id: rid(8), text: t, answers: [] });
+      state.current = state.questions.length - 1;
+    } else {
+      cur().text = t;
+    }
+    $('qModal').classList.remove('open');
+    showQuestion();
+  }
+  $('btnAdd').onclick = () => openQ('add');
+  $('btnEditQ').onclick = () => openQ('edit');
+  $('qSave').onclick = saveQ;
+  $('qCancel').onclick = () => $('qModal').classList.remove('open');
+  $('inQ').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveQ(); } });
+
+  $('btnDelQ').onclick = () => {
+    if (!confirm('ഈ ചോദ്യവും അതിന്റെ ഉത്തരങ്ങളും നീക്കം ചെയ്യണോ?')) return;
+    state.questions.splice(state.current, 1);
+    showQuestion();
+  };
+  $('btnClear').onclick = () => {
+    if (!cur().answers.length) return;
+    if (confirm('ഈ ചോദ്യത്തിന്റെ എല്ലാ ഉത്തരങ്ങളും മായ്ക്കണോ?')){ cur().answers = []; resetCloud(); save(); render(); }
+  };
+  $('btnQr').onclick = () => { state.showQr = !state.showQr; save(); refreshShare(); };
+
+  $('btnAll').onclick = () => {
+    $('inTitle').value = state.title || '';
+    $('inQs').value = state.questions.map(q => q.text).join('\n');
+    $('allModal').classList.add('open');
+    $('inQs').focus();
+  };
+  $('allCancel').onclick = () => $('allModal').classList.remove('open');
+  $('allSave').onclick = () => {
+    const lines = $('inQs').value.split('\n').map(clean).filter(Boolean);
+    const old = new Map(state.questions.map(q => [q.text, q]));
+    state.questions = lines.map(t => old.get(t) || { id: rid(8), text: t, answers: [] });
+    state.title = clean($('inTitle').value) || 'Word Cloud';
+    $('allModal').classList.remove('open');
+    showQuestion();
+  };
+
+  $('btnShare').onclick = openShare;
+  $('joinCard').onclick = openShare;
+  $('shareClose').onclick = () => $('shareModal').classList.remove('open');
+  $('btnCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText(joinUrl()); $('btnCopy').textContent = '✓ പകർത്തി'; }
+    catch (e) { $('joinLink').select(); document.execCommand('copy'); $('btnCopy').textContent = '✓ പകർത്തി'; }
+    setTimeout(() => $('btnCopy').textContent = 'പകർത്തുക', 1500);
+  };
+  $('btnNewRoom').onclick = () => {
+    if (!confirm('പുതിയ ലിങ്ക് ഉണ്ടാക്കിയാൽ പഴയ ലിങ്ക് വഴി ഇനി ഉത്തരങ്ങൾ വരില്ല. തുടരണോ?')) return;
+    state.room = rid(14); state.seen = []; state.lastId = null; save();
+    subscribeAnswers(); openShare(); broadcast();
+  };
+
+  $('prev').onclick = () => { state.current--; showQuestion(); };
+  $('next').onclick = () => { state.current++; showQuestion(); };
+  $('btnFull').onclick = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+    else document.exitFullscreen && document.exitFullscreen();
+  };
+  document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' && state.current < state.questions.length - 1){ state.current++; showQuestion(); }
+    if (e.key === 'ArrowLeft' && state.current > 0){ state.current--; showQuestion(); }
+  });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+  refreshShare();
+  showQuestion();
+  subscribeAnswers();
+  setInterval(broadcast, 60000); // പുതുതായി ചേരുന്നവർക്കായി ഇടയ്ക്കിടെ ചോദ്യം വീണ്ടും അയക്കുന്നു
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+}
+</script>
+</body>
+</html>
