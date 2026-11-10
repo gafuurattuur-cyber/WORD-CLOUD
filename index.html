@@ -42,7 +42,7 @@ form.answer{display:flex;gap:10px;padding:10px 20px 6px;max-width:780px;width:10
 form.answer input{flex:1;min-width:0;font:inherit;font-size:18px;padding:14px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.09);color:var(--text);outline:none}
 input:focus,textarea:focus{border-color:var(--accent)}
 input:disabled{opacity:.4}
-.count{color:var(--muted);font-size:13px;text-align:center;padding:0 20px 14px;min-height:30px}
+.count{color:var(--muted);font-size:13px;text-align:center;padding:6px 20px 14px;min-height:30px}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#64748b;margin-right:6px;vertical-align:middle}
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
 #measure{position:absolute;visibility:hidden;white-space:nowrap;font-weight:800;line-height:1;left:-9999px;top:0}
@@ -110,10 +110,6 @@ input:disabled{opacity:.4}
   <div id="joinCard" title="വലുതാക്കാൻ ക്ലിക്ക് ചെയ്യുക"><div id="miniQr"></div><div class="lbl">📱 സ്കാൻ ചെയ്ത് ഉത്തരം നൽകൂ</div></div>
 </div>
 
-<form class="answer" id="form" autocomplete="off">
-  <input id="ans" maxlength="40" placeholder="ഇവിടെയും ഉത്തരം ടൈപ്പ് ചെയ്യാം">
-  <button class="primary" type="submit" id="btnSubmit">Submit</button>
-</form>
 <div class="count"><span class="dot" id="liveDot"></span><span id="count"></span></div>
 <span id="measure"></span>
 
@@ -357,7 +353,7 @@ function startHost(){
     const items = counts();
     if (hasQ()){
       $('count').textContent = 'പ്രതികരണങ്ങൾ: ' + cur().answers.length + '  •  വ്യത്യസ്ത ഉത്തരങ്ങൾ: ' + items.length;
-      $('empty').textContent = 'ലിങ്ക് / QR വഴി ഉത്തരങ്ങൾ അയക്കൂ… ഇവിടെ Word Cloud ആയി തെളിയും ✨';
+      $('empty').textContent = '';
     } else {
       $('count').textContent = '';
       $('empty').textContent = 'മുകളിലെ "➕ പുതിയ ചോദ്യം" ബട്ടൺ അമർത്തി ആദ്യ ചോദ്യം ചേർക്കൂ';
@@ -464,7 +460,6 @@ function startHost(){
     $('next').style.visibility = n > 1 ? 'visible' : 'hidden';
     $('prev').disabled = state.current === 0;
     $('next').disabled = state.current >= n - 1;
-    $('ans').disabled = !n; $('btnSubmit').disabled = !n;
     $('joinCard').classList.toggle('hide', !state.showQr || isFile || !n);
     resetCloud();
     render();
@@ -478,12 +473,6 @@ function startHost(){
     save(); render();
   }
 
-  $('form').addEventListener('submit', e => {
-    e.preventDefault();
-    if (!hasQ()) return;
-    if (addAnswers(cur(), $('ans').value)){ $('ans').value = ''; save(); render(); }
-    $('ans').focus();
-  });
 
   let editMode = 'add';
   function openQ(mode){
